@@ -1,1 +1,0 @@
-"""University Helpdesk ADK agent."""

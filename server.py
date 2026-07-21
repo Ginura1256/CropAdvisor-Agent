@@ -1,0 +1,954 @@
+from __future__ import annotations
+
+import os
+import uuid
+import asyncio
+from typing import Literal
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+import uvicorn
+
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from google.genai.types import Content, Part
+
+from crop_agent.agent import (
+    root_agent,
+    search_crop_diseases,
+    get_live_weather,
+    get_agricultural_helpline,
+    _load_db,
+)
+
+app = FastAPI(
+    title="Sri Lanka CropAdvisor Agricultural Advisory Portal",
+    description="REST API and Interactive Web Dashboard with AI Chat for Crop Diagnostics.",
+    version="1.0.0",
+)
+
+SUPPORTED_CROPS = ["paddy", "chilli", "tomato", "cinnamon", "tea", "maize", "potato", "pepper"]
+
+# ADK Session Service & Runner Initialization
+session_service = InMemorySessionService()
+runner = Runner(app_name="crop_agent", agent=root_agent, session_service=session_service)
+
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: str | None = None
+    user_id: str = "web_user"
+
+
+# ── REST API Endpoints ────────────────────────────────────────────────────────
+
+@app.get("/api/crops")
+def get_supported_crops():
+    """Retrieve list of supported crops."""
+    return {"status": "success", "crops": SUPPORTED_CROPS}
+
+
+@app.get("/api/diseases")
+def get_crop_diseases(
+    crop: str | None = None,
+    search: str | None = None,
+):
+    """Search crop disease records with optional crop and symptom filtering."""
+    db = _load_db()
+    results = db
+
+    if crop and crop.lower() != "all":
+        results = [r for r in results if r.get("crop", "").lower() == crop.lower()]
+
+    if search:
+        s = search.lower().strip()
+        filtered = []
+        for record in results:
+            symptoms_str = " ".join(record.get("symptoms", [])).lower()
+            name_str = record.get("disease_name", "").lower()
+            cat_str = record.get("category", "").lower()
+            if s in symptoms_str or s in name_str or s in cat_str or s in record.get("crop", "").lower():
+                filtered.append(record)
+        results = filtered
+
+    return {
+        "status": "success",
+        "count": len(results),
+        "total_count": len(db),
+        "results": results,
+    }
+
+
+@app.get("/api/weather")
+def fetch_weather(location: str = Query("Anuradhapura", description="District or city name")):
+    """Fetch live weather conditions and risk analysis for agricultural districts."""
+    res = get_live_weather(location)
+    if res.get("status") == "error":
+        return res
+
+    humidity = res.get("relative_humidity_percent", 0) or 0
+
+    risk_level = "Low"
+    risk_color = "#10b981"
+    risk_advice = "Favorable farming conditions. Maintain standard irrigation."
+
+    if humidity > 85:
+        risk_level = "High Fungal Risk"
+        risk_color = "#ef4444"
+        risk_advice = "High humidity (>85%) exacerbates Fungal Blast, Blight, and Mildew threats. Monitor crop leaves daily!"
+    elif humidity > 70:
+        risk_level = "Moderate Disease Risk"
+        risk_color = "#f59e0b"
+        risk_advice = "Moderate relative humidity. Ensure field drainage and avoid excessive Urea application."
+
+    res["disease_risk"] = {
+        "level": risk_level,
+        "color": risk_color,
+        "advice": risk_advice,
+    }
+    return res
+
+
+@app.get("/api/helpline")
+def fetch_helpline():
+    """Retrieve official Sri Lanka Department of Agriculture helpline details."""
+    return get_agricultural_helpline()
+
+
+@app.post("/api/chat")
+async def chat_with_agent(req: ChatRequest):
+    """Interact with the CropAdvisor AI Agent directly via REST API."""
+    if not req.message or not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    sess_id = req.session_id or f"session_{uuid.uuid4().hex[:8]}"
+
+    # Ensure session exists in ADK session service
+    try:
+        await session_service.get_session(app_name="crop_agent", user_id=req.user_id, session_id=sess_id)
+    except Exception:
+        await session_service.create_session(app_name="crop_agent", user_id=req.user_id, session_id=sess_id)
+
+    user_content = Content(role="user", parts=[Part.from_text(text=req.message.strip())])
+
+    ai_responses = []
+    try:
+        async for event in runner.run_async(user_id=req.user_id, session_id=sess_id, new_message=user_content):
+            if event.content and event.content.parts:
+                for part in event.content.parts:
+                    if part.text:
+                        ai_responses.append(part.text)
+    except Exception as err:
+        return {
+            "status": "error",
+            "message": f"AI Agent execution failed: {err}",
+            "session_id": sess_id,
+        }
+
+    full_text = "\n".join(ai_responses).strip() if ai_responses else "No response generated by agent."
+    return {
+        "status": "success",
+        "response": full_text,
+        "session_id": sess_id,
+    }
+
+
+# ── Web Dashboard UI HTML ──────────────────────────────────────────────────────
+
+CROP_ADVISOR_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Lanka CropAdvisor — Agricultural Advisory & AI Diagnostics Portal</title>
+    <meta name="description" content="Official AI-powered agricultural advisory portal for Sri Lankan farmers. Diagnose crop diseases, chat with the AI Crop Advisor, monitor district live weather risks, and access DOA helpline support.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #070f14;
+            --card-bg: rgba(14, 27, 34, 0.78);
+            --card-border: rgba(52, 211, 153, 0.14);
+            --accent-emerald: #10b981;
+            --accent-teal: #14b8a6;
+            --accent-cyan: #06b6d4;
+            --accent-lime: #84cc16;
+            --text-main: #f0fdf4;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            background-image: 
+                radial-gradient(at 15% 15%, rgba(16, 185, 129, 0.14) 0px, transparent 55%),
+                radial-gradient(at 85% 85%, rgba(6, 182, 212, 0.12) 0px, transparent 55%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .brand h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.1rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #34d399 0%, #2dd4bf 50%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-top: 0.3rem;
+        }
+
+        .helpline-badge {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(20, 184, 166, 0.2));
+            border: 1px solid var(--accent-emerald);
+            border-radius: 1rem;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
+        }
+
+        .helpline-badge .phone-icon {
+            font-size: 1.6rem;
+        }
+
+        .helpline-badge .number {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #34d399;
+        }
+
+        .helpline-badge .label {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Grid Layout ── */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @max-width: 980px {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── AI Agent Chat Card ── */
+        .chat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            height: 620px;
+        }
+
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 1rem;
+        }
+
+        .chat-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            color: #34d399;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .chat-status-pill {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 2rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .chat-status-pill::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #34d399;
+            box-shadow: 0 0 8px #34d399;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(52, 211, 153, 0.2);
+            border-radius: 10px;
+        }
+
+        .msg {
+            max-width: 88%;
+            padding: 1rem 1.2rem;
+            border-radius: 1rem;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(20, 184, 166, 0.3));
+            border: 1px solid var(--accent-emerald);
+            color: #f0fdf4;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .msg-ai {
+            align-self: flex-start;
+            background: rgba(7, 15, 20, 0.85);
+            border: 1px solid var(--card-border);
+            color: #e2e8f0;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .msg-ai p { margin-bottom: 0.6rem; }
+        .msg-ai p:last-child { margin-bottom: 0; }
+        .msg-ai ul, .msg-ai ol { margin-left: 1.25rem; margin-bottom: 0.6rem; }
+        .msg-ai h3, .msg-ai h4 { font-family: 'Outfit', sans-serif; color: #34d399; margin: 0.6rem 0 0.3rem 0; }
+
+        .chat-prompts {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .prompt-btn {
+            background: rgba(7, 15, 20, 0.7);
+            border: 1px solid var(--card-border);
+            border-radius: 2rem;
+            padding: 0.35rem 0.85rem;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .prompt-btn:hover {
+            border-color: var(--accent-emerald);
+            color: var(--text-main);
+            transform: translateY(-1px);
+        }
+
+        .chat-input-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-input-row input {
+            flex: 1;
+            background: rgba(7, 15, 20, 0.9);
+            border: 1px solid var(--card-border);
+            border-radius: 0.75rem;
+            padding: 0.8rem 1.1rem;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input-row input:focus {
+            border-color: var(--accent-emerald);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, var(--accent-emerald), var(--accent-teal));
+            color: #042f2e;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.8rem 1.4rem;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-send:hover {
+            opacity: 0.9;
+        }
+
+        /* ── Weather & Explorer Side Cards ── */
+        .side-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .weather-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .weather-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .weather-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            color: #34d399;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .district-select {
+            background: rgba(7, 15, 20, 0.9);
+            border: 1px solid var(--card-border);
+            border-radius: 0.5rem;
+            padding: 0.4rem 0.8rem;
+            color: var(--text-main);
+            font-size: 0.88rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .weather-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .stat-box {
+            background: rgba(7, 15, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 0.85rem 0.4rem;
+        }
+
+        .stat-box .val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #f0fdf4;
+        }
+
+        .stat-box .lbl {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+            text-transform: uppercase;
+        }
+
+        .risk-alert-box {
+            background: rgba(7, 15, 20, 0.8);
+            border-left: 4px solid var(--accent-emerald);
+            border-radius: 0.5rem;
+            padding: 0.85rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        /* ── Diagnostics Cards Grid ── */
+        .controls-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            margin-bottom: 1.5rem;
+        }
+
+        .crop-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .chip {
+            background: rgba(7, 15, 20, 0.7);
+            border: 1px solid var(--card-border);
+            border-radius: 2rem;
+            padding: 0.45rem 0.95rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .chip:hover {
+            border-color: var(--accent-emerald);
+            color: var(--text-main);
+        }
+
+        .chip.active {
+            background: linear-gradient(135deg, var(--accent-emerald), var(--accent-teal));
+            color: #042f2e;
+            font-weight: 700;
+            border-color: transparent;
+        }
+
+        .diseases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .disease-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 1.25rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .disease-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.85rem;
+            gap: 0.75rem;
+        }
+
+        .disease-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f0fdf4;
+            line-height: 1.35;
+        }
+
+        .crop-badge {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 0.4rem;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .category-tag {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .cat-Fungal { background: rgba(239, 68, 68, 0.18); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .cat-Pest { background: rgba(245, 158, 11, 0.18); color: #fde047; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .cat-Viral { background: rgba(168, 85, 247, 0.18); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+        .symptoms-list { margin-bottom: 1rem; }
+        .symptoms-list h4 { font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .symptom-tag { display: inline-block; background: rgba(7, 15, 20, 0.8); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 0.4rem; padding: 0.25rem 0.55rem; font-size: 0.82rem; color: #cbd5e1; margin: 0.15rem 0.2rem 0.15rem 0; }
+
+        .section-box { background: rgba(7, 15, 20, 0.5); border-radius: 0.75rem; padding: 0.85rem; margin-bottom: 0.75rem; font-size: 0.85rem; }
+        .section-box h5 { font-size: 0.78rem; text-transform: uppercase; margin-bottom: 0.35rem; }
+        .sec-organic h5 { color: #84cc16; }
+        .sec-chemical h5 { color: #06b6d4; }
+        .sec-prevention h5 { color: #f59e0b; }
+
+        .empty-state { grid-column: 1 / -1; padding: 3rem; text-align: center; color: var(--text-muted); background: var(--card-bg); border: 1px dashed var(--card-border); border-radius: 1.25rem; }
+
+        footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border); text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h1>🌱 Sri Lanka CropAdvisor</h1>
+                <p>Agricultural Advisory, AI Agent Diagnostics & Real-Time Weather Analysis</p>
+            </div>
+            <div class="helpline-badge">
+                <div class="phone-icon">📞</div>
+                <div>
+                    <div class="number">1920</div>
+                    <div class="label">DOA Krushi Upades Hotline</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left AI Chat Section -->
+            <div class="chat-card">
+                <div class="chat-header">
+                    <h2>🤖 Chat with CropAdvisor AI Agent</h2>
+                    <div class="chat-status-pill">ADK Agent Online</div>
+                </div>
+
+                <div class="chat-messages" id="chat-messages">
+                    <div class="msg msg-ai">
+                        <p>👋 <strong>Ayubowan! I am your CropAdvisor virtual assistant.</strong></p>
+                        <p>Ask me any question about crop symptoms, pest control, chemical/organic treatments, or weather risks in Sri Lanka!</p>
+                    </div>
+                </div>
+
+                <div class="chat-prompts">
+                    <button class="prompt-btn" onclick="sendPrompt('My paddy leaves have brown spindle spots in Anuradhapura')">🌾 Paddy Blast in Anuradhapura</button>
+                    <button class="prompt-btn" onclick="sendPrompt('Chilli leaves curling upwards in Jaffna')">🌶️ Chilli Leaf Curl in Jaffna</button>
+                    <button class="prompt-btn" onclick="sendPrompt('Potato late blight symptoms and treatment in Nuwara Eliya')">🥔 Potato Blight in Nuwara Eliya</button>
+                    <button class="prompt-btn" onclick="sendPrompt('What is the official Department of Agriculture helpline number?')">📞 DOA Hotline Info</button>
+                </div>
+
+                <div class="chat-input-row">
+                    <input type="text" id="chat-input" placeholder="Type your agricultural question here..." onkeypress="handleKeyPress(event)">
+                    <button class="btn-send" onclick="sendMessage()" id="send-btn">Send</button>
+                </div>
+            </div>
+
+            <!-- Right Column: Weather & Quick Stats -->
+            <div class="side-col">
+                <div class="weather-card">
+                    <div class="weather-header">
+                        <h2>⛅ District Live Weather</h2>
+                        <select id="district-select" class="district-select" onchange="fetchWeather()">
+                            <option value="Anuradhapura">Anuradhapura</option>
+                            <option value="Nuwara Eliya">Nuwara Eliya</option>
+                            <option value="Jaffna">Jaffna</option>
+                            <option value="Kandy">Kandy</option>
+                            <option value="Kurunegala">Kurunegala</option>
+                            <option value="Matale">Matale</option>
+                            <option value="Badulla">Badulla</option>
+                            <option value="Colombo">Colombo</option>
+                        </select>
+                    </div>
+
+                    <div class="weather-stats">
+                        <div class="stat-box">
+                            <div class="val" id="weather-temp">--°C</div>
+                            <div class="lbl">Temperature</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" id="weather-humidity">--%</div>
+                            <div class="lbl">Humidity</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="val" id="weather-rain">-- mm</div>
+                            <div class="lbl">Rainfall</div>
+                        </div>
+                    </div>
+
+                    <div class="risk-alert-box" id="risk-box">
+                        <strong id="risk-level" style="color: var(--accent-emerald);">Evaluating Risk...</strong>
+                        <span id="risk-advice">Loading district weather telemetry...</span>
+                    </div>
+                </div>
+
+                <div class="controls-card" style="margin-bottom:0;">
+                    <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; color: #34d399; margin-bottom: 0.5rem;">
+                        📋 Quick Database Filter
+                    </h3>
+                    <div class="crop-chips" id="crop-chips">
+                        <div class="chip active" onclick="selectCrop('all', this)">All Crops</div>
+                        <div class="chip" onclick="selectCrop('paddy', this)">🌾 Paddy</div>
+                        <div class="chip" onclick="selectCrop('chilli', this)">🌶️ Chilli</div>
+                        <div class="chip" onclick="selectCrop('tomato', this)">🍅 Tomato</div>
+                        <div class="chip" onclick="selectCrop('cinnamon', this)">🪵 Cinnamon</div>
+                        <div class="chip" onclick="selectCrop('tea', this)">🍃 Tea</div>
+                        <div class="chip" onclick="selectCrop('maize', this)">🌽 Maize</div>
+                        <div class="chip" onclick="selectCrop('potato', this)">🥔 Potato</div>
+                        <div class="chip" onclick="selectCrop('pepper', this)">🫑 Black Pepper</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disease Database Section -->
+        <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; margin-bottom: 1rem; color: #34d399;">
+            📚 Department of Agriculture Disease Database
+        </h3>
+        <div class="diseases-grid" id="diseases-grid">
+            <div class="empty-state">Loading crop disease records...</div>
+        </div>
+
+        <footer>
+            Official Sri Lanka Department of Agriculture Advisory Standard • Powered by Google ADK Agent
+        </footer>
+    </div>
+
+    <script>
+        let currentCrop = 'all';
+        let sessionId = null;
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            appendMessage(message, 'user');
+
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.innerText = 'Thinking...';
+
+            const loadingMsgId = appendLoadingMessage();
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message, session_id: sessionId })
+                });
+
+                const data = await res.json();
+                removeLoadingMessage(loadingMsgId);
+
+                if (data.status === 'success') {
+                    sessionId = data.session_id;
+                    appendMessage(data.response, 'ai');
+                } else {
+                    appendMessage(`⚠️ Error: ${data.message || 'Failed to get response.'}`, 'ai');
+                }
+            } catch (err) {
+                removeLoadingMessage(loadingMsgId);
+                appendMessage('⚠️ Network error. Please check your connection.', 'ai');
+            } finally {
+                sendBtn.disabled = false;
+                sendBtn.innerText = 'Send';
+            }
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        function sendPrompt(text) {
+            document.getElementById('chat-input').value = text;
+            sendMessage();
+        }
+
+        function appendMessage(text, role) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = `msg msg-${role}`;
+            
+            if (role === 'ai') {
+                div.innerHTML = marked.parse(text);
+            } else {
+                div.innerText = text;
+            }
+
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function appendLoadingMessage() {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            div.className = 'msg msg-ai';
+            div.id = 'loading-' + Date.now();
+            div.innerHTML = '<em>🌱 CropAdvisor AI is searching diagnostic tools & live weather...</em>';
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div.id;
+        }
+
+        function removeLoadingMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        async function loadDiseases() {
+            const params = new URLSearchParams();
+            if (currentCrop !== 'all') params.append('crop', currentCrop);
+
+            try {
+                const res = await fetch(`/api/diseases?${params.toString()}`);
+                const data = await res.json();
+                renderDiseases(data.results);
+            } catch (err) {
+                console.error("Failed to load diseases", err);
+            }
+        }
+
+        function selectCrop(crop, el) {
+            currentCrop = crop;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            loadDiseases();
+        }
+
+        function renderDiseases(records) {
+            const container = document.getElementById('diseases-grid');
+            if (!records || records.length === 0) {
+                container.innerHTML = `<div class="empty-state">🌾 No disease records matching criteria.</div>`;
+                return;
+            }
+
+            container.innerHTML = records.map(r => {
+                const catClass = `cat-${r.category.split(' ')[0]}`;
+                const symptomsHtml = (r.symptoms || []).map(s => `<span class="symptom-tag">• ${escapeHtml(s)}</span>`).join('');
+                return `
+                    <div class="disease-card">
+                        <div>
+                            <div class="disease-header">
+                                <div class="disease-title">${escapeHtml(r.disease_name)}</div>
+                                <span class="crop-badge">${escapeHtml(r.crop)}</span>
+                            </div>
+                            <span class="category-tag ${catClass}">${escapeHtml(r.category)}</span>
+                            
+                            <div class="symptoms-list">
+                                <h4>Key Symptoms</h4>
+                                ${symptomsHtml}
+                            </div>
+
+                            <div class="section-box sec-organic">
+                                <h5>🌿 Organic & Cultural Remedy</h5>
+                                <div>${escapeHtml(r.organic_treatment)}</div>
+                            </div>
+
+                            <div class="section-box sec-chemical">
+                                <h5>🧪 DOA Chemical Standard</h5>
+                                <div>${escapeHtml(r.chemical_treatment)}</div>
+                            </div>
+
+                            <div class="section-box sec-prevention">
+                                <h5>🛡️ Prevention Strategy</h5>
+                                <div>${escapeHtml(r.prevention)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function fetchWeather() {
+            const district = document.getElementById('district-select').value;
+            const riskLevel = document.getElementById('risk-level');
+            const riskAdvice = document.getElementById('risk-advice');
+
+            try {
+                const res = await fetch(`/api/weather?location=${encodeURIComponent(district)}`);
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    document.getElementById('weather-temp').innerText = `${data.temperature_celsius ?? '--'}°C`;
+                    document.getElementById('weather-humidity').innerText = `${data.relative_humidity_percent ?? '--'}%`;
+                    document.getElementById('weather-rain').innerText = `${data.precipitation_mm ?? '0'} mm`;
+
+                    if (data.disease_risk) {
+                        riskLevel.innerText = data.disease_risk.level;
+                        riskLevel.style.color = data.disease_risk.color;
+                        riskAdvice.innerText = data.disease_risk.advice;
+                    }
+                } else {
+                    riskLevel.innerText = "Weather Sensor Offline";
+                    riskLevel.style.color = "#ef4444";
+                    riskAdvice.innerText = data.message || "Failed to fetch live weather.";
+                }
+            } catch (err) {
+                console.error("Failed to load weather", err);
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // Initial Load
+        loadDiseases();
+        fetchWeather();
+    </script>
+</body>
+</html>
+"""
+
+
+@app.get("/", response_class=HTMLResponse)
+def get_crop_advisor_dashboard():
+    """Render the main CropAdvisor Web Dashboard."""
+    return HTMLResponse(content=CROP_ADVISOR_HTML)
+
+
+if __name__ == "__main__":
+    print("Starting CropAdvisor Web Application on http://localhost:8080 ...")
+    uvicorn.run("server:app", host="0.0.0.0", port=8080, reload=True)

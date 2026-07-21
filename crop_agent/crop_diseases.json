@@ -1,0 +1,175 @@
+[
+  {
+    "id": "DIS-PAD-001",
+    "crop": "paddy",
+    "disease_name": "Paddy Blast (Goinu Paluwa / Pyricularia oryzae)",
+    "category": "Fungal",
+    "symptoms": [
+      "spindle-shaped leaf spots",
+      "gray or white center on spots",
+      "brown margin on leaves",
+      "rotted or black neck node",
+      "empty or unfilled grain heads"
+    ],
+    "favorable_conditions": "High relative humidity (>90%), cool night temperatures (20-25°C), and excessive nitrogen (Urea) application.",
+    "agro_ecological_zones": ["Dry Zone", "Intermediate Zone", "Wet Zone"],
+    "organic_treatment": "Apply wood ash to field, spray neem seed kernel extract (5%), ensure proper field drainage, and maintain recommended water level.",
+    "chemical_treatment": "Apply Tricyclazole 75% WP (0.6g/L) or Isoprothiolane 40% EC (1.5ml/L) as recommended by Department of Agriculture Sri Lanka.",
+    "prevention": "Avoid over-application of Urea fertilizer; use blast-resistant varieties like Bg 300, Bg 352, or Bg 379/2."
+  },
+  {
+    "id": "DIS-PAD-002",
+    "crop": "paddy",
+    "disease_name": "Brown Planthopper Damage (Kalu Kapanawa / Nilaparvata lugens)",
+    "category": "Pest",
+    "symptoms": [
+      "yellowing of lower leaves",
+      "browning and drying of plants in circular patches",
+      "hopperburn (burnt appearance of crop)",
+      "sooty mold on stem bases"
+    ],
+    "favorable_conditions": "Continuous high water level, dense crop canopy, cloudy weather, and overuse of broad-spectrum insecticides.",
+    "agro_ecological_zones": ["Dry Zone", "Intermediate Zone", "Wet Zone"],
+    "organic_treatment": "Drain field water completely for 3-4 days to expose pest base; encourage natural predators (spiders, mirid bugs).",
+    "chemical_treatment": "Apply Pymetrozine 50% WG or Buprofezin 25% SC at early nymph stages under Agrarian Instructor guidance.",
+    "prevention": "Maintain proper plant spacing (20cm x 15cm), practice alternate wetting and drying (AWD)."
+  },
+  {
+    "id": "DIS-CHIL-001",
+    "crop": "chilli",
+    "disease_name": "Chilli Leaf Curl Virus (Kuda Veyiya / Vector: Thrips & Whitefly)",
+    "category": "Viral / Pest Vector",
+    "symptoms": [
+      "upward curling of leaves",
+      "puckered and thickened leaf blades",
+      "stunted plant growth",
+      "reduced leaf size and clustering",
+      "poor fruit set or small distorted chillies"
+    ],
+    "favorable_conditions": "Hot, dry weather spells favoring rapid vector insect multiplication.",
+    "agro_ecological_zones": ["Dry Zone", "Intermediate Zone"],
+    "organic_treatment": "Spray neem oil emulsion (5ml/L + soap solution) or garlic-chilli extract to reduce vector thrips/whiteflies.",
+    "chemical_treatment": "Target vectors with Imidacloprid 200 SL (0.5ml/L) or Acetamiprid 20% SP under local agricultural advisory.",
+    "prevention": "Plant 3-4 rows of maize or sorghum as a living barrier around chilli plots; install yellow and blue sticky traps."
+  },
+  {
+    "id": "DIS-CHIL-002",
+    "crop": "chilli",
+    "disease_name": "Anthracnose / Fruit Rot (Gedipala Veyiya / Colletotrichum capsici)",
+    "category": "Fungal",
+    "symptoms": [
+      "circular sunken spots on ripe fruits",
+      "black concentric rings on chilli pods",
+      "dried or straw-colored ripe fruits",
+      "dieback of upper branches"
+    ],
+    "favorable_conditions": "High humidity (>80%) accompanied by rain showers during fruit ripening.",
+    "agro_ecological_zones": ["Dry Zone", "Intermediate Zone", "Wet Zone"],
+    "organic_treatment": "Remove and burn infected fruits immediately; spray copper hydroxide or Trichoderma viride formulations.",
+    "chemical_treatment": "Spray Mancozeb 80% WP (2g/L) or Difenoconazole 250 EC (0.5ml/L) at fruit formation stage.",
+    "prevention": "Use pathogen-free seeds; treat seeds with Thiram before sowing."
+  },
+  {
+    "id": "DIS-TOM-001",
+    "crop": "tomato",
+    "disease_name": "Tomato Late Blight (Phytophthora infestans)",
+    "category": "Fungal",
+    "symptoms": [
+      "water-soaked dark green/brown spots on leaves",
+      "white cottony fungal growth on underside of leaves",
+      "brown firm spots on green and ripe fruits",
+      "rapid wilting of plant canopy"
+    ],
+    "favorable_conditions": "Cool temperatures (15-22°C) combined with high rainfall or heavy dew (common in Nuwara Eliya & Badulla).",
+    "agro_ecological_zones": ["Upcountry Wet Zone", "Intermediate Zone"],
+    "organic_treatment": "Prune lower leaves touching soil; apply copper sulfate + lime mixture (Bordeaux mixture).",
+    "chemical_treatment": "Spray Metalaxyl 8% + Mancozeb 64% WP (2.5g/L) or Dimethomorph 50% WP.",
+    "prevention": "Ensure wide spacing; avoid overhead sprinkler irrigation."
+  },
+  {
+    "id": "DIS-CIN-001",
+    "crop": "cinnamon",
+    "disease_name": "Cinnamon Rough Bark / Leaf Blight (Colletotrichum gloeosporioides)",
+    "category": "Fungal",
+    "symptoms": [
+      "brown irregular spots on young leaves",
+      "rough cracked bark on mature cinnamon stems",
+      "dieback of tender shoot tips",
+      "defoliation of young cinnamon bushes"
+    ],
+    "favorable_conditions": "Excessive shade, unpruned dense bushes, and high monsoon rainfall in Southern Sri Lanka.",
+    "agro_ecological_zones": ["Lowcountry Wet Zone"],
+    "organic_treatment": "Prune overcrowded foliage to improve sunlight penetration; destroy infected harvest waste.",
+    "chemical_treatment": "Apply Copper Oxychloride 50% WP (2.5g/L) following Department of Export Agriculture guidelines.",
+    "prevention": "Maintain shade tree density at 20-25%; apply balanced NPK fertilizer."
+  },
+  {
+    "id": "DIS-TEA-001",
+    "crop": "tea",
+    "disease_name": "Tea Blister Blight (Exobasidium vexans)",
+    "category": "Fungal",
+    "symptoms": [
+      "translucent pale yellow spots on tender leaves",
+      "white blister-like swellings on under-surface of flush",
+      "curling and distortion of young tea shoots",
+      "blackened dead flush"
+    ],
+    "favorable_conditions": "Monsoonal mist, cloudy weather with less than 3 hours of daily sunshine (Upcountry tea plantations).",
+    "agro_ecological_zones": ["Upcountry Wet Zone", "Midcountry Wet Zone"],
+    "organic_treatment": "Adjust pruning schedule to avoid peak monsoon flush; increase shade tree lopping.",
+    "chemical_treatment": "Spray Copper Oxychloride 50% WP combined with Nickel Chloride under TRI (Tea Research Institute) recommendations.",
+    "prevention": "Monitor daily sunshine hours; use blister-resistant tea clones."
+  },
+  {
+    "id": "DIS-MAIZ-001",
+    "crop": "maize",
+    "disease_name": "Fall Armyworm (Sena Caterpillar / Spodoptera frugiperda)",
+    "category": "Pest",
+    "symptoms": [
+      "ragged holes in young maize leaves",
+      "sawdust-like frass (excrement) inside leaf whorl",
+      "damaged growing points",
+      "damaged cobs with larval feeding",
+      "caterpillar infestation"
+    ],
+    "favorable_conditions": "Warm dry spells during early vegetative and tasseling stages in Anuradhapura, Monaragala, and Ampara.",
+    "agro_ecological_zones": ["Dry Zone", "Intermediate Zone"],
+    "organic_treatment": "Apply neem seed kernel extract into whorls; drop sand/ash mixed with neem powder into central whorls.",
+    "chemical_treatment": "Apply Spinetoram 11.7% SC or Emamectin Benzoate 5% SG as authorized by Sri Lanka DOA.",
+    "prevention": "Synchronized planting in villages; crop rotation with non-host legumes."
+  },
+  {
+    "id": "DIS-POT-001",
+    "crop": "potato",
+    "disease_name": "Potato Late Blight (Phytophthora infestans / Urani Paluwa)",
+    "category": "Fungal",
+    "symptoms": [
+      "water-soaked dark spots on leaf tips and margins",
+      "white mildew/fungal web under leaf surfaces in humid weather",
+      "brown dry rot on potato tubers",
+      "rapid foliage collapse and foul odor"
+    ],
+    "favorable_conditions": "High relative humidity (>90%) with cool temperatures (15-20°C) during fog or rains in Nuwara Eliya & Welimada.",
+    "agro_ecological_zones": ["Upcountry Wet Zone", "Upcountry Intermediate Zone"],
+    "organic_treatment": "Hilling up soil high around plant bases; spray Bordeaux mixture (1%) at weekly intervals.",
+    "chemical_treatment": "Apply Mancozeb 80% WP (2.5g/L) or Cymoxanil + Mancozeb (2g/L) strictly according to DOA guidelines.",
+    "prevention": "Plant disease-free certified seed potatoes; destroy volunteer host plants."
+  },
+  {
+    "id": "DIS-PEP-001",
+    "crop": "pepper",
+    "disease_name": "Black Pepper Quick Wilt / Foot Rot (Phytophthora capsici)",
+    "category": "Fungal",
+    "symptoms": [
+      "dark brown or black water-soaked lesions on leaf tips",
+      "sudden yellowing and flaccidity of entire vine canopy",
+      "blackening and sloughing off of bark on stem base (foot rot)",
+      "rapid shedding of leaves and pepper spikes within 7-14 days"
+    ],
+    "favorable_conditions": "Heavy monsoonal rains leading to waterlogging near stem bases in Matale, Kandy, and Kegalle.",
+    "agro_ecological_zones": ["Midcountry Wet Zone", "Midcountry Intermediate Zone"],
+    "organic_treatment": "Ensure deep drainage contour channels; drench base with Trichoderma viride bio-fungicide mixture.",
+    "chemical_treatment": "Drench vine root zone with Potassium Phosphonate (3ml/L) or Copper Oxychloride 50% WP (3g/L) at monsoon onset.",
+    "prevention": "Tie vines above ground before rains; avoid root damage during weeding."
+  }
+]

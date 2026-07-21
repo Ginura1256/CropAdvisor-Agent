@@ -1,37 +1,27 @@
-# University Helpdesk Agent
+# Sri Lankan Crop Advisor ADK Agent & Web Application
 
-University Helpdesk Agent is a beginner-friendly [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) demo for university workshops. It answers student questions about courses, exam schedules, registration, and campus facilities at a Sri Lankan university, using Python function tools to look up real data instead of guessing.
+This repository contains the [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) **`crop_agent`** component (`crop_advisor`) and a dedicated **FastAPI Web Application**. It assists farmers and extension officers with Sri Lankan crop disease diagnostics, Open-Meteo live weather risk analysis, organic/chemical recommendations, and Department of Agriculture (DOA 1920) advisory support.
 
 ## Features
 
-- A single ADK agent with a clear `root_agent` entry point
-- Four tools covering courses, exam schedules, registration, and campus FAQs
-- `Literal` type hints that constrain every tool argument to valid values
-- Status-dict tool returns (`{"status": "success" | "error", ...}`) instead of raised exceptions
-- An instruction prompt that asks a clarifying question when a request is ambiguous (e.g. exams without a department)
+- **ADK Agent Architecture**: Clean modular Python package with `root_agent` entry point (`crop_advisor`).
+- **Interactive Web Dashboard**: Modern, dark glassmorphism Web Application served via FastAPI on port `8080`.
+- **Data Grounding**: Grounded disease database ([`crop_diseases.json`](file:///c:/new%20AI/bwai-adk-basic-demo/crop_agent/crop_diseases.json)) covering Paddy, Chilli, Tomato, Cinnamon, Tea, Maize, Potato, and Black Pepper.
+- **Live Weather Integration**: Real-time district weather analysis via Open-Meteo API with SSL resilience and retry handling.
+- **Literal Type Safety**: Constrained function tool arguments preventing model hallucination.
 
-## Course catalogue
-
-| Code | Course | Department | Semester | Lecturer |
-| --- | --- | --- | --- | --- |
-| CS2101 | Data Structures and Algorithms | IT | 2 | Dr. Perera |
-| CS2102 | Database Management Systems | IT | 2 | Ms. Jayawardena |
-| CS2103 | Software Engineering | IT | 2 | Dr. Fernando |
-| CS2104 | Computer Networks | IT | 2 | Mr. Dissanayake |
-| BM2101 | Marketing Management | Business | 2 | Ms. Silva |
-| BM2102 | Financial Accounting | Business | 2 | Dr. Wijesinghe |
-| EN2101 | Structural Analysis | Engineering | 2 | Prof. Rathnayake |
-| EN2102 | Thermodynamics | Engineering | 2 | Dr. Bandara |
-
-## Project structure
+## Project Structure
 
 ```text
 .
-├── helpdesk_agent/
+├── crop_agent/
 │   ├── __init__.py
-│   └── agent.py
+│   ├── agent.py
+│   └── crop_diseases.json
+├── server.py
+├── test_crop_agent.py
+├── test_server.py
 ├── .env.example
-├── .gitignore
 ├── README.md
 └── requirements.txt
 ```
