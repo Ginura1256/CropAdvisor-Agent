@@ -1,156 +1,148 @@
-# Sri Lankan Crop Advisor ADK Agent & Web Application
+# Sri Lankan CropAdvisor ADK Agent & Web Application
 
-This repository contains the [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) **`crop_agent`** component (`crop_advisor`) and a dedicated **FastAPI Web Application**. It assists farmers and extension officers with Sri Lankan crop disease diagnostics, Open-Meteo live weather risk analysis, organic/chemical recommendations, and Department of Agriculture (DOA 1920) advisory support.
+[![Google ADK](https://img.shields.io/badge/Google%20ADK-Agent%20Development%20Kit-emerald)](https://google.github.io/adk-docs/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-1.0.0-009688)](https://fastapi.tiangolo.com/)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
 
-## Features
+An official AI-powered agricultural advisory portal and REST API for Sri Lankan farmers and extension officers. Built using **Google Agent Development Kit (ADK)**, **FastAPI**, **Open-Meteo Live Weather API**, and grounded in the **Sri Lanka Department of Agriculture (DOA)** disease database.
 
-- **ADK Agent Architecture**: Clean modular Python package with `root_agent` entry point (`crop_advisor`).
-- **Interactive Web Dashboard**: Modern, dark glassmorphism Web Application served via FastAPI on port `8080`.
-- **Data Grounding**: Grounded disease database ([`crop_diseases.json`](file:///c:/new%20AI/bwai-adk-basic-demo/crop_agent/crop_diseases.json)) covering Paddy, Chilli, Tomato, Cinnamon, Tea, Maize, Potato, and Black Pepper.
-- **Live Weather Integration**: Real-time district weather analysis via Open-Meteo API with SSL resilience and retry handling.
-- **Literal Type Safety**: Constrained function tool arguments preventing model hallucination.
+---
 
-## Project Structure
+## 🌟 Key Features
+
+- 🤖 **ADK AI Agent Architecture**: Powered by `google-adk` with function tools (`search_crop_diseases`, `get_live_weather`, `get_agricultural_helpline`).
+- 🎨 **Modern Interactive Dashboard**: Dark glassmorphic dashboard with live weather telemetry, disease filters, and AI chat.
+- 🌾 **Grounded Crop Disease Database**: Grounded diagnoses for Paddy, Chilli, Tomato, Cinnamon, Tea, Maize, Potato, and Black Pepper.
+- ⛅ **Real-Time Weather Risk Telemetry**: Fetches live district weather (temperature, relative humidity, rainfall) to assess fungal & disease threat levels.
+- 🔄 **Resilient Multi-Turn Sessions**: Robust session recovery with auto-creation (`auto_create_session=True`) and interactive session reset button (`New Chat`).
+- 🧪 **Comprehensive Automated Testing**: Unit and integration test suites covering agent tools, session handling, and API endpoints.
+
+---
+
+## 📁 Project Structure
 
 ```text
 .
 ├── crop_agent/
-│   ├── __init__.py
-│   ├── agent.py
-│   └── crop_diseases.json
-├── server.py
-├── test_crop_agent.py
-├── test_server.py
-├── .env.example
-├── README.md
-└── requirements.txt
+│   ├── __init__.py           # Package exports for root_agent & tools
+│   ├── agent.py              # Root ADK agent definition & function tools
+│   └── crop_diseases.json    # DOA grounded disease & pest record database
+├── server.py                 # FastAPI REST API & Web Dashboard server
+├── test_crop_agent.py        # Automated test suite for crop agent & tools
+├── test_server.py           # Automated test suite for FastAPI REST endpoints & chat
+├── .env.example              # Template for API keys
+├── README.md                 # Project documentation
+└── requirements.txt          # Python dependencies
 ```
 
-Local credentials, virtual environments, Python caches, and ADK session data are excluded from Git.
+---
 
-## Prerequisites
+## 🚀 Quick Start
 
-Before you start, make sure you have the following. These are the minimum tools ADK needs to run an agent locally.
+### 1. Prerequisites
 
-- **Python 3.10 or newer** — ADK is a Python framework, so you need a Python interpreter installed to run it at all. Check your version with `python3 --version`. If it's older than 3.10, install a newer Python from [python.org](https://www.python.org/downloads/) first.
-- **A Google AI Studio API key or a configured Google Cloud project** — the agent's "brain" is a Gemini model, which runs on Google's servers, not on your laptop. You need credentials so your code is allowed to call that model. An [AI Studio](https://aistudio.google.com/) API key is the fastest option for a workshop; a Vertex AI project is the alternative if your organization already uses Google Cloud.
-- **Git** — used to download (clone) this project's code to your machine.
+- **Python 3.10+**
+- **Google AI Studio API Key** (or Google Cloud Vertex AI credentials)
+- **Git**
 
-## Setup
+### 2. Installation
 
-Each step below explains *why* it exists, not just what to type, so you understand what's happening to your machine.
+Clone the repository and move into the project directory:
 
-1. Clone the repository and enter its directory.
+```bash
+git clone https://github.com/Ginura1256/CropAdvisor-Agent.git
+cd CropAdvisor-Agent
+```
 
-   ```bash
-   git clone <your-repository-url>
-   cd <repository-directory>
-   ```
+Create and activate a virtual environment:
 
-   `git clone` downloads a copy of this project (all its files and history) from a remote location to your computer. `cd` ("change directory") then moves your terminal into that new folder, so every command you run afterward applies to this project instead of wherever you were before.
+```bash
+# macOS/Linux
+python3 -m venv .venv
+source .venv/bin/activate
 
-2. Create and activate a virtual environment.
+# Windows PowerShell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
 
-   macOS/Linux:
+Install dependencies:
 
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-   Windows PowerShell:
+### 3. Environment Configuration
 
-   ```powershell
-   python -m venv .venv
-   .venv\Scripts\Activate.ps1
-   ```
+Copy `.env.example` to `.env`:
 
-   **What is a virtual environment, and why bother?** Every Python project needs its own set of installed packages (libraries), often at specific versions. If you installed everything globally on your machine, two projects that need different versions of the same package would conflict, and eventually your system Python would become a tangle of incompatible libraries.
+```bash
+# macOS/Linux
+cp .env.example .env
 
-   A virtual environment ("venv") is an isolated, self-contained copy of Python that lives inside a folder — here, `.venv` — just for this project. `python3 -m venv .venv` creates that folder. `source .venv/bin/activate` (or `Activate.ps1` on Windows) then tells your current terminal session "use the Python and packages inside `.venv`, not the system-wide ones." You'll know it worked because your terminal prompt will show `(.venv)` at the start of the line. You only need to activate it once per terminal session; deactivate any time with `deactivate`.
+# Windows PowerShell
+Copy-Item .env.example .env
+```
 
-3. Install the dependencies.
+Edit `.env` and add your Google API Key:
 
-   ```bash
-   python -m pip install -r requirements.txt
-   ```
+```env
+GOOGLE_GENAI_USE_VERTEXAI=FALSE
+GOOGLE_API_KEY=your_google_ai_studio_api_key_here
+```
 
-   `pip` is Python's package manager — it downloads and installs libraries from the Python Package Index (PyPI). `requirements.txt` is a plain text file listing exactly which libraries this project needs (in this case, the `google-adk` package and its dependencies) so that anyone setting up the project gets the same, known-working set instead of guessing what to install. Running this with your venv active means the libraries are installed *inside* `.venv`, keeping them isolated from other projects.
+---
 
-4. Create your local environment file.
+## 💻 Running the Application
 
-   macOS/Linux:
+### Option A: Launch Web Dashboard & REST API (Recommended)
 
-   ```bash
-   cp .env.example .env
-   ```
+Run the server with Python:
 
-   Windows PowerShell:
+```bash
+python server.py
+```
 
-   ```powershell
-   Copy-Item .env.example .env
-   ```
+Open your browser and navigate to:
+👉 **`http://localhost:8080`**
 
-   `.env.example` is a template checked into Git showing which configuration values the project expects (like which API key variable name to use) without containing any real secrets. Copying it to `.env` gives you your own private file to fill in. `.env` is listed in `.gitignore`, so Git will never track or upload it — this is what keeps your personal API key from accidentally ending up in a public repository.
+### Option B: Launch ADK Developer Chat Interface
 
-5. Edit `.env` and provide either your Google AI Studio API key or your Vertex AI project settings. Never commit this file.
-
-   ADK reads these environment variables at startup to know which Gemini model account to bill and authenticate against. Treat this file like a password: don't paste its contents into chat, screenshots, or commits.
-
-## Run the agent
-
-From the repository root, with the virtual environment active, run:
+To test the agent inside the Google ADK Developer Web UI:
 
 ```bash
 adk web
 ```
 
-`adk web` is a command installed by the `google-adk` package (from step 3). It scans the current directory for agent folders like `helpdesk_agent/`, starts a local web server, and gives you a chat UI in the browser to talk to your agent — so you can test it interactively without writing any extra code. It prints a local URL (something like `http://localhost:8000`); open that in a browser and select `university_helpdesk` from the list of available agents. Stop the server anytime with `Ctrl+C` in the terminal.
+Select `crop_advisor` from the agent list.
 
-## Example prompts
+---
 
-Courses:
+## 💬 Example Queries for CropAdvisor
 
-- "Hi, I am a second-year IT student. What courses do I have this semester?"
-- "What Business courses are available?"
-- "Show me every course on offer."
+- **Paddy Diagnostics**: *"My paddy leaves have brown spindle-shaped spots in Anuradhapura."*
+- **Chilli Leaf Curl**: *"Chilli leaves curling upwards with stunted growth in Jaffna."*
+- **Potato Blight**: *"Potato leaves have dark water-soaked spots in Nuwara Eliya. What treatment should I use?"*
+- **General Advisory**: *"What is the official Department of Agriculture helpline number?"*
 
-Exams:
+---
 
-- "When is the exam for Database Management Systems?"
-- "When are my exams?" (the agent will ask which department you're in)
-- "What time and venue is the Software Engineering final?"
+## 🧪 Running Automated Tests
 
-Registration:
+Run the crop agent tool tests:
 
-- "I want to register for next semester. What do I need to do and what is the deadline?"
-- "How much is the late registration fee?"
+```bash
+python test_crop_agent.py
+```
 
-Campus info:
+Run the server and API test suite:
 
-- "What time does the library close tonight?"
-- "Where can I find hostel warden contacts?"
-- "What are the clinic hours?"
+```bash
+python test_server.py
+```
 
-## How it works
+---
 
-[`helpdesk_agent/agent.py`](helpdesk_agent/agent.py) defines the course, exam, registration, and campus data, four function tools, and the ADK agent:
+## 🛡️ License & Standards
 
-- `list_courses` lists all courses or filters them by department and/or semester.
-- `get_exam_schedule` returns exam dates, times, and venues for a department and semester.
-- `get_registration_info` returns registration steps, deadlines, fees, and contacts.
-- `get_campus_info` returns hours and contacts for library, canteen, hostel, clinic, sports, or general topics.
-
-The agent is instructed to ground every answer in tool output, never guess, and ask one clarifying question when a request is ambiguous — for example, asking which department a student is in before looking up an exam schedule.
-
-## Workshop extension ideas
-
-- Replace the hardcoded data with a real database (PostgreSQL/MySQL via SQLAlchemy or `psycopg2`).
-- Add a `submit_ticket` tool that logs student complaints or support requests.
-- Add a `check_result` tool that looks up a student's grades by index number.
-- Use ADK session state so the agent remembers a student's department across turns.
-- Explore ADK multi-agent systems, with an orchestrator delegating to specialist sub-agents.
-
-## Security
-
-Keep API keys and cloud credentials only in your local `.env` file or a secure secret manager. If a secret is ever committed, revoke or rotate it before removing it from Git history.
+Grounding guidelines adhere to the official standards of the **Department of Agriculture Sri Lanka (DOA)**. Hotline: **1920** (Krushi Upades).

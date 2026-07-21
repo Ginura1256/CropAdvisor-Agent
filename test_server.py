@@ -78,10 +78,37 @@ def test_get_dashboard_html():
     print("✅ HTML Dashboard served successfully.")
 
 
+def test_post_chat():
+    print("\n--- Testing POST /api/chat ---")
+    # 1. Initial message without session_id
+    res1 = client.post("/api/chat", json={"message": "Hello"})
+    assert res1.status_code == 200
+    data1 = res1.json()
+    assert data1["status"] == "success"
+    assert "session_id" in data1
+    session_id = data1["session_id"]
+    print("✅ Chat endpoint turn 1 passed, session_id:", session_id)
+
+    # 2. Multi-turn message with existing session_id
+    res2 = client.post("/api/chat", json={"message": "What is Paddy Blast?", "session_id": session_id})
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["status"] == "success"
+    print("✅ Chat endpoint multi-turn passed.")
+
+    # 3. Message with stale/bogus session_id (should auto-create without failing)
+    res3 = client.post("/api/chat", json={"message": "Hi again", "session_id": "session_stale_xyz123"})
+    assert res3.status_code == 200
+    data3 = res3.json()
+    assert data3["status"] == "success"
+    print("✅ Chat endpoint stale session recovery passed.")
+
+
 if __name__ == "__main__":
     test_get_crops()
     test_get_diseases()
     test_get_weather()
     test_get_helpline()
     test_get_dashboard_html()
+    test_post_chat()
     print("\n🎉 ALL SERVER API TESTS PASSED SUCCESSFULLY!")
