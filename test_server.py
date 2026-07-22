@@ -71,7 +71,7 @@ def test_get_helpline():
     assert res.status_code == 200
     data = res.json()
     assert data["status"] == "success"
-    assert "1920" in data["hotline"]
+    assert "286 1500" in data["hotline"]
     print("✅ Helpline endpoint verified:", data["hotline"])
 
 

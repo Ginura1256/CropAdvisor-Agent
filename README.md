@@ -143,6 +143,16 @@ python test_server.py
 
 ---
 
+## 👥 Authors & Contributors
+
+- **G. I. Bogahawatte**
+- **W. M. Nimnadi Dulwanya**
+- **R. G. Himandi Asirini Ranathunga**
+- **T. G. Rashmi Navodya Gamage**
+- **R. A. Achini Nirasha Sathsarani**
+
+---
+
 ## 🛡️ License & Standards
 
-Grounding guidelines adhere to the official standards of the **Department of Agriculture Sri Lanka (DOA)**. Hotline: **1920** (Krushi Upades).
+Grounding guidelines adhere to the official standards of the **Department of Agriculture Sri Lanka (DOA)**. Hotline: **+94 11 286 1500** / **1920** (Krushi Upades).

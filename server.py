@@ -99,14 +99,24 @@ def evaluate_disease_risk(weather_data: dict) -> dict:
     color = "#10b981"
     advice = "Favorable agricultural conditions. Maintain standard irrigation and routine field monitoring."
 
-    # Priority 1: Heavy Rainfall / Waterlogging Alert
-    if daily_precip >= 20.0 or current_precip >= 10.0 or rain_prob >= 85:
+    # Priority 1: Heavy Rainfall / Waterlogging Alert (Requires actual heavy rainfall >= 25mm daily or >= 10mm current)
+    if daily_precip >= 25.0 or current_precip >= 10.0:
         risk_factors.append("heavy_rainfall")
         level = "High Flood & Bacterial Risk"
         color = "#ef4444"
-        advice = "Heavy rainfall detected! Ensure immediate field drainage to prevent root rot, bacterial wilt, and soil nutrient leaching."
+        if current_precip >= 10.0 and daily_precip < 25.0:
+            advice = f"High-intensity rain burst ({current_precip} mm/hr) detected! Ensure immediate field drainage to prevent root rot and bacterial wilt."
+        else:
+            advice = f"Heavy daily rainfall ({daily_precip} mm) detected! Ensure immediate field drainage to prevent root rot, bacterial wilt, and soil nutrient leaching."
 
-    # Priority 2: High Fungal Blast / Blight Risk (High Humidity > 85%)
+    # Priority 2: Moderate Rain & Waterlogging Risk
+    elif daily_precip >= 10.0 or (rain_prob >= 85 and daily_precip >= 5.0):
+        risk_factors.append("moderate_rainfall")
+        level = "Moderate Rain & Waterlogging Risk"
+        color = "#f59e0b"
+        advice = f"Moderate rainfall ({daily_precip} mm) detected or high rain probability ({rain_prob}%). Ensure field drainage channels are clear."
+
+    # Priority 3: High Fungal Blast / Blight Risk (High Humidity > 85%)
     elif humidity >= 85:
         risk_factors.append("high_humidity")
         if temp < 20.0:
@@ -118,14 +128,14 @@ def evaluate_disease_risk(weather_data: dict) -> dict:
             color = "#ef4444"
             advice = "Relative humidity exceeds 85%. Fungal blast, downy mildew, and sheath blight threats are severe. Avoid evening overhead watering."
 
-    # Priority 3: Moderate Fungal/Disease Risk (Humidity 70-84%)
+    # Priority 4: Moderate Fungal/Disease Risk (Humidity 70-84%)
     elif humidity >= 70:
         risk_factors.append("moderate_humidity")
         level = "Moderate Disease Risk"
         color = "#f59e0b"
         advice = "Moderate relative humidity. Maintain field sanitation, monitor leaf undersides, and avoid excessive nitrogen/Urea applications."
 
-    # Priority 4: Heat Stress & Thrips/Mites Pest Risk (Temp > 32°C and Low Humidity < 55%)
+    # Priority 5: Heat Stress & Thrips/Mites Pest Risk (Temp > 32°C and Low Humidity < 55%)
     elif temp >= 32.0 and humidity <= 55:
         risk_factors.append("heat_pest_stress")
         level = "High Pest & Drought Stress"
