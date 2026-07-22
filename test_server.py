@@ -47,16 +47,22 @@ def test_get_diseases():
 
 
 def test_get_weather():
-    print("\n--- Testing GET /api/weather ---")
-    res = client.get("/api/weather?location=Anuradhapura")
-    assert res.status_code == 200
-    data = res.json()
-    if data["status"] == "success":
-        assert "temperature_celsius" in data
-        assert "disease_risk" in data
-        print(f"✅ Weather endpoint passed for {data['location']}: Risk = {data['disease_risk']['level']}")
-    else:
-        print(f"⚠️ Weather endpoint returned warning (transient network): {data.get('message')}")
+    print("\n--- Testing GET /api/weather & Multi-Factor Risk Assessment ---")
+    for loc in ["Anuradhapura", "Nuwara Eliya", "Jaffna"]:
+        res = client.get(f"/api/weather?location={loc}")
+        assert res.status_code == 200
+        data = res.json()
+        if data["status"] == "success":
+            assert "temperature_celsius" in data
+            assert "disease_risk" in data
+            risk = data["disease_risk"]
+            assert "level" in risk
+            assert "color" in risk
+            assert "advice" in risk
+            assert "risk_factors" in risk
+            print(f"  ✅ Weather endpoint passed for {data['location']}: Risk Level = '{risk['level']}', Factors = {risk['risk_factors']}")
+        else:
+            print(f"  ⚠️ Weather endpoint returned warning for {loc}: {data.get('message')}")
 
 
 def test_get_helpline():
@@ -74,8 +80,10 @@ def test_get_dashboard_html():
     res = client.get("/")
     assert res.status_code == 200
     assert "Sri Lanka CropAdvisor" in res.text
+    assert "theme-toggle-btn" in res.text
+    assert "toggleTheme()" in res.text
     assert "text/html" in res.headers["content-type"]
-    print("✅ HTML Dashboard served successfully.")
+    print("✅ HTML Dashboard & Dark Theme Toggle served successfully.")
 
 
 def test_post_chat():

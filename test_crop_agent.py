@@ -40,14 +40,23 @@ def test_disease_search_all_crops():
 
 
 def test_live_weather_districts():
-    print("\n--- Testing Open-Meteo Live Weather API ---")
-    districts = ["Anuradhapura", "Nuwara Eliya", "Jaffna", "Kandy"]
-    for dist in districts:
+    print("\n--- Testing Open-Meteo Live Weather API & District Normalization ---")
+    test_queries = [
+        "Anuradhapura",
+        "Nuwara Eliya",
+        "nuwaraeliya",
+        "Kandy District",
+        "Jaffna Peninsula",
+    ]
+    for dist in test_queries:
         res = get_live_weather(dist)
         if res["status"] == "success":
             assert "temperature_celsius" in res, f"Missing temperature for {dist}"
+            assert "feels_like_celsius" in res, f"Missing feels_like for {dist}"
+            assert "daily_precipitation_sum_mm" in res, f"Missing daily precip for {dist}"
+            assert "wind_direction_cardinal" in res, f"Missing wind direction for {dist}"
             print(
-                f"  ✅ Weather for {res['location']}: {res['temperature_celsius']}°C, Humidity: {res['relative_humidity_percent']}%"
+                f"  ✅ Weather for '{dist}' -> {res['location']}: {res['temperature_celsius']}°C (Feels {res['feels_like_celsius']}°C), Humidity: {res['relative_humidity_percent']}%, Rain 24h: {res['daily_precipitation_sum_mm']}mm, Wind: {res['wind_direction_cardinal']} {res['wind_speed_kmh']}km/h"
             )
         else:
             print(f"  ⚠️ Weather warning for {dist} (transient network): {res.get('message')}")
@@ -57,7 +66,7 @@ def test_helpline():
     print("\n--- Testing DOA Helpline Tool ---")
     res = get_agricultural_helpline()
     assert res["status"] == "success"
-    assert "1920" in res["hotline"]
+    assert "+94 11 286 1500" in res["hotline"]
     print("✅ Helpline test passed:", res["hotline"])
 
 
